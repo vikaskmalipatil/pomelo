@@ -453,11 +453,10 @@ const cloneContest = async (req, res, next) => {
             return res.status(404).json({ success: false, error: 'Original contest not found' });
         }
 
-        // Opens in 24 hours with the original's join window, capped below a day: the edit form
-        // only takes a close time, so a 24-hour window reads as "opens 8 PM, closes 8 PM".
+        // Opens in 24 hours with the original's join window (a day if the original's is invalid).
         const DAY_MS = 24 * 60 * 60 * 1000;
         const originalWindow = new Date(originalContest.endTime) - new Date(originalContest.startTime);
-        const windowMs = originalWindow > 0 && originalWindow < DAY_MS ? originalWindow : DAY_MS - 60 * 1000;
+        const windowMs = originalWindow > 0 ? originalWindow : DAY_MS;
         const startTime = new Date(Date.now() + DAY_MS);
         const endTime = new Date(startTime.getTime() + windowMs);
 

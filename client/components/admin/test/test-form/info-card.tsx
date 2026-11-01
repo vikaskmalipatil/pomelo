@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/form";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { formatDuration } from "@/lib/date-utils";
+import { noopSubscribe } from "@/hooks/use-is-client";
 
 function formatTimeForDisplay(hours: number, minutes: number) {
   const period = hours >= 12 ? "PM" : "AM";
@@ -68,7 +69,6 @@ function normalizeTimeInput(value: string) {
   return value.replace(/\b(am|pm)\b/gi, (match) => match.toUpperCase());
 }
 
-const subscribe = () => () => {};
 const clientTimezone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 const serverTimezone = () => null;
 const subscribeClock = (onTick: () => void) => {
@@ -77,6 +77,13 @@ const subscribeClock = (onTick: () => void) => {
 };
 const clientNow = () => Math.floor(Date.now() / 30_000) * 30_000;
 const serverNow = () => 0;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+// Whole local calendar days from a's date to b's date.
+function calendarDaysBetween(a: Date, b: Date) {
+  const day = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  return Math.round((day(b) - day(a)) / DAY_MS);
+}
 
 export default function TestBasicCard() {
   const { control, setValue, watch } = useFormContext();
@@ -88,11 +95,14 @@ export default function TestBasicCard() {
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<Date | undefined>(undefined);
   const [time, setTime] = useState("12:00 AM");
+  // Days after the opening date the window closes, so multi-day windows are expressible
+  // and the close date moves with the start date.
+  const [closeDayOffset, setCloseDayOffset] = useState(0);
   const endsAtInitialized = useRef(false);
   // Resolved client-side only — the server's ICU data can report a different
   // (sometimes outdated-alias) name for the same zone than the browser does,
   // which causes a hydration mismatch if read during SSR.
-  const userTimezone = useSyncExternalStore(subscribe, clientTimezone, serverTimezone);
+  const userTimezone = useSyncExternalStore(noopSubscribe, clientTimezone, serverTimezone);
 
   const clientStartsAt = userTimezone ? startsAt : undefined;
   const [prevStartsAt, setPrevStartsAt] = useState<string | undefined>(undefined);
@@ -102,6 +112,9 @@ export default function TestBasicCard() {
     if (parsed && !isNaN(parsed.getTime())) {
       setDate(parsed);
       setTime(formatTimeForInput(parsed));
+      // First client render: derive the close day from the stored window.
+      const end = prevStartsAt === undefined && endsAt ? new Date(endsAt) : null;
+      if (end && !isNaN(end.getTime())) setCloseDayOffset(Math.max(0, calendarDaysBetween(parsed, end)));
     }
   }
 
@@ -138,16 +151,18 @@ export default function TestBasicCard() {
       const parsedTime = parseTimeInput(endsAtTime);
       if (!parsedTime) return;
       const endDate = new Date(date);
+      endDate.setDate(endDate.getDate() + closeDayOffset);
       endDate.setHours(parsedTime.hours, parsedTime.minutes, 0, 0);
       if (startsAt && endDate <= new Date(startsAt)) {
         endDate.setDate(endDate.getDate() + 1);
       }
       setValue("endsAt", endDate.toISOString());
     }
-  }, [date, endsAtTime, startsAt, setValue]);
+  }, [date, endsAtTime, closeDayOffset, startsAt, setValue]);
 
   const isNewTest = !watch("id");
-  const now = useSyncExternalStore(subscribeClock, clientNow, serverNow);
+  // The past-start warning only applies to new tests, so edits don't tick every 30s.
+  const now = useSyncExternalStore(isNewTest ? subscribeClock : noopSubscribe, clientNow, serverNow);
   const startsInPast = isNewTest && now > 0 && !!startsAt && new Date(startsAt).getTime() < now;
 
   const durationPreview = Number(durationMinutes) > 0 ? formatDuration(Number(durationMinutes)) : null;
@@ -255,15 +270,28 @@ export default function TestBasicCard() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Closes At (HH:MM AM/PM)</FormLabel>
-                  <FormControl>
+                  <div className="flex items-center gap-2">
+                    <FormControl>
+                      <Input
+                        type="text"
+                        value={field.value || ""}
+                        onChange={(e) => field.onChange(normalizeTimeInput(e.target.value))}
+                        placeholder="01:30 PM"
+                        className="w-fit bg-background appearance-none [&::-webkit-calendar-picker-indicator]:hidden"
+                      />
+                    </FormControl>
+                    <span className="text-sm text-muted-foreground">+</span>
                     <Input
-                      type="text"
-                      value={field.value || ""}
-                      onChange={(e) => field.onChange(normalizeTimeInput(e.target.value))}
-                      placeholder="01:30 PM"
-                      className="w-fit bg-background appearance-none [&::-webkit-calendar-picker-indicator]:hidden"
+                      type="number"
+                      min={0}
+                      step={1}
+                      aria-label="Days after the opening date"
+                      value={closeDayOffset}
+                      onChange={(e) => setCloseDayOffset(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+                      className="w-16 bg-background"
                     />
-                  </FormControl>
+                    <span className="text-sm text-muted-foreground">day(s)</span>
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}

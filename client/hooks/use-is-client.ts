@@ -2,10 +2,11 @@
 
 import { useSyncExternalStore } from "react";
 
-const subscribe = () => () => {};
+/** For useSyncExternalStore values that never change after mount. */
+export const noopSubscribe = () => () => {};
 const clientSnapshot = () => true;
 const serverSnapshot = () => false;
 
 export function useIsClient() {
-  return useSyncExternalStore(subscribe, clientSnapshot, serverSnapshot);
+  return useSyncExternalStore(noopSubscribe, clientSnapshot, serverSnapshot);
 }

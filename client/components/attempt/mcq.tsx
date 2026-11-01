@@ -36,11 +36,6 @@ export default function MCQScreen({ problem, problems }: MCQScreenProps) {
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const { completeTest, isSubmitting } = useTestCompletion();
 
-  // Create sorting logic matching TestHeader: MCQs first, then Coding
-  const mcqProblems = problems.filter((p) => p.type === "mcq");
-  const codingProblems = problems.filter((p) => p.type === "coding");
-  const sortedProblems = [...mcqProblems, ...codingProblems];
-
   const correctIndices = useMemo(() => {
     if (runtime.mode !== "preview" || !problem.correctAnswer) return new Set<number>();
     return new Set(
@@ -51,9 +46,10 @@ export default function MCQScreen({ problem, problems }: MCQScreenProps) {
     );
   }, [runtime.mode, problem.correctAnswer]);
 
-  const currentIndex = sortedProblems.findIndex((p) => String(p.id) === String(problem._id || problem.id));
-  const prevProblem = sortedProblems[currentIndex - 1];
-  const nextProblem = sortedProblems[currentIndex + 1];
+  // The server already orders MCQs first, matching the question tray.
+  const currentIndex = problems.findIndex((p) => String(p.id) === String(problem._id || problem.id));
+  const prevProblem = problems[currentIndex - 1];
+  const nextProblem = problems[currentIndex + 1];
 
   const doSave = useCallback(async (answers: string[]) => {
     setIsSaving(true);

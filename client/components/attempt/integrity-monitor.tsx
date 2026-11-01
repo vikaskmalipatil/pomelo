@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useIsClient } from "@/hooks/use-is-client";
+import { useViolationCount } from "@/hooks/use-violation-count";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -76,19 +76,12 @@ async function exitTestFullscreen() {
 
 export default function IntegrityMonitor() {
   const { completeTest, isSubmitting, testId } = useTestCompletion();
-  const [violationCount, setViolationCount] = useState(0);
   const [activeViolation, setActiveViolation] = useState<ViolationType | null>(null);
   const [resumeError, setResumeError] = useState<string | null>(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(Math.ceil(FINAL_MODAL_DELAY_MS / 1000));
 
-  const isClient = useIsClient();
-  const storageTestId = isClient && testId && !DISABLE_PROCTORING ? testId : null;
-  const [loadedTestId, setLoadedTestId] = useState<string | null>(null);
-  if (storageTestId !== loadedTestId) {
-    setLoadedTestId(storageTestId);
-    if (storageTestId) setViolationCount(readViolationCount(storageTestId));
-  }
+  const violationCount = useViolationCount(testId && !DISABLE_PROCTORING ? testId : null);
 
   const blurTimeoutRef = useRef<number | null>(null);
   const screenshotTimeoutRef = useRef<number | null>(null);
@@ -160,7 +153,6 @@ export default function IntegrityMonitor() {
 
     const nextCount = storedCount + 1;
     persistViolationCount(testId, nextCount);
-    setViolationCount(nextCount);
 
     if (type === "PRINT_SCREEN") {
       obfuscateAttemptBody();

@@ -7,8 +7,8 @@ import { useRouter, useParams } from "next/navigation";
 import { useTestCompletion } from "./use-test-completion";
 import { getContestData } from "@/actions/contest";
 import { toast } from "@/components/ui/banner";
-import { readViolationCount, MAX_VIOLATIONS } from "@/lib/attempt-integrity";
-import { useIsClient } from "@/hooks/use-is-client";
+import { MAX_VIOLATIONS } from "@/lib/attempt-integrity";
+import { useViolationCount } from "@/hooks/use-violation-count";
 import TestTimer from "./test-timer";
 import SubmitConfirmDialog from "./submit-confirm-dialog";
 
@@ -20,26 +20,9 @@ export default function TestHeader({ initialTimeRemaining }: TestHeaderProps) {
   const router = useRouter();
   const params = useParams();
   const { completeTest, isSubmitting } = useTestCompletion();
-  const [violations, setViolations] = React.useState(0);
   const [showConfirmDialog, setShowConfirmDialog] = React.useState(false);
 
-  const isClient = useIsClient();
-  const storageTestId = isClient && params.testid ? String(params.testid) : null;
-  const [loadedTestId, setLoadedTestId] = React.useState<string | null>(null);
-  if (storageTestId !== loadedTestId) {
-    setLoadedTestId(storageTestId);
-    if (storageTestId) setViolations(readViolationCount(storageTestId));
-  }
-
-  // Sync with cross-tab/local violation updates
-  React.useEffect(() => {
-    const handleViolationUpdate = (e: Event) => {
-      setViolations((e as CustomEvent<{ count: number }>).detail.count);
-    };
-
-    window.addEventListener("pomelo-violation-update", handleViolationUpdate);
-    return () => window.removeEventListener("pomelo-violation-update", handleViolationUpdate);
-  }, []);
+  const violations = useViolationCount(params.testid ? String(params.testid) : null);
 
   // Handle BFCache (Back/Forward Cache)
   // If user presses back button after finishing, force a refresh to trigger server-side checks
