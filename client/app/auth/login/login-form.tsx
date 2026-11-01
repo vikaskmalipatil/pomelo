@@ -24,7 +24,8 @@ const SSO_ERRORS: Record<string, string> = {
 export default function LoginForm({ methods }: { methods: AuthMethods }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [oauthError, setOauthError] = useState("");
+  // null until an OAuth attempt reports, so the ?error= message shows until a retry clears it.
+  const [oauthError, setOauthError] = useState<string | null>(null);
   const [isEmailPasswordLoading, setIsEmailPasswordLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -39,7 +40,7 @@ export default function LoginForm({ methods }: { methods: AuthMethods }) {
 
   const urlError = searchParams.get("error");
   const ssoError =
-    oauthError ||
+    oauthError ??
     (urlError ? SSO_ERRORS[urlError] || "Authentication failed. Please try again." : "");
 
   const validateForm = () => {

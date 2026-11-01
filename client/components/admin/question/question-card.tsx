@@ -104,7 +104,8 @@ export default function QuestionCard({
       )}
       onClick={handleClick}
     >
-      {dialog && <div onClick={(e) => e.stopPropagation()}>{dialog}</div>}
+      {/* contents: the wrapper only stops clicks reaching the card; it must not become a flex item */}
+      {dialog && <div className="contents" onClick={(e) => e.stopPropagation()}>{dialog}</div>}
       <div className="space-y-1">
         <div className="flex flex-wrap items-center gap-2">
           <h4 className="font-medium text-foreground">{problem.title}</h4>

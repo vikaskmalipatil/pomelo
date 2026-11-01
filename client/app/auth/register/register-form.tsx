@@ -21,7 +21,8 @@ export default function RegisterForm({ oauth }: { oauth: AuthMethods["oauth"] })
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [oauthError, setOauthError] = useState("");
+  // null until an OAuth attempt reports, so the ?error= message shows until a retry clears it.
+  const [oauthError, setOauthError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -35,7 +36,7 @@ export default function RegisterForm({ oauth }: { oauth: AuthMethods["oauth"] })
 
   const urlError = searchParams.get("error");
   const ssoError =
-    oauthError ||
+    oauthError ??
     (urlError === "OAuthAccountNotLinked"
       ? "To confirm your identity, sign in with the same account you used originally."
       : urlError

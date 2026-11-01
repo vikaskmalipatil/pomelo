@@ -32,7 +32,7 @@ export default function ContestLanding() {
   const [timeLeft, setTimeLeft] = useState<string>("");
   const [showFullscreenPrompt, setShowFullscreenPrompt] = useState(false);
   const [alreadyCompleted, setAlreadyCompleted] = useState(false);
-  const [loadError, setLoadError] = useState("");
+  const [loadError, setLoadError] = useState<{ message: string; badLink: boolean } | null>(null);
   const [justSubmitted] = useState(() => {
     if (typeof window === "undefined" || !testid) return false;
     try {
@@ -79,11 +79,13 @@ export default function ContestLanding() {
           if (result.isCompleted) {
             setAlreadyCompleted(true);
           } else {
-            setLoadError(result.error || "Failed to fetch data");
+            // Only a bad ID or missing test means the link is wrong; 429/5xx/session errors are retryable.
+            const badLink = result.httpStatus === 400 || result.httpStatus === 404;
+            setLoadError({ message: result.error || "Failed to fetch data", badLink });
           }
         }
       } catch {
-        setLoadError("Failed to load this test");
+        setLoadError({ message: "Failed to load this test", badLink: false });
       } finally {
         setLoading(false);
       }
@@ -200,14 +202,23 @@ export default function ContestLanding() {
     </div>
   );
 
-  if (loadError) return (
+  // Right after submitting, the success panel matters more than a failed landing fetch.
+  if (loadError && !justSubmitted) return (
     <div className="flex flex-col items-center justify-center min-h-screen gap-4 px-4 text-center">
       <AlertCircle className="h-10 w-10 text-destructive" />
-      <h1 className="text-2xl font-semibold">{loadError}</h1>
-      <p className="text-muted-foreground">Check the link or join code you were given.</p>
-      <Button variant="outline" className="rounded-full" onClick={() => router.push("/join")}>
-        Enter a join code
-      </Button>
+      <h1 className="text-2xl font-semibold">{loadError.message}</h1>
+      {loadError.badLink ? (
+        <>
+          <p className="text-muted-foreground">Check the link or join code you were given.</p>
+          <Button variant="outline" className="rounded-full" onClick={() => router.push("/join")}>
+            Enter a join code
+          </Button>
+        </>
+      ) : (
+        <Button variant="outline" className="rounded-full" onClick={() => window.location.reload()}>
+          Try again
+        </Button>
+      )}
     </div>
   );
 

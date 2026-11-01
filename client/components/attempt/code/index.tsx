@@ -80,18 +80,14 @@ export function CodeScreen({
 
   const handleLanguageChange = (newLang: string) => {
     setLanguage(newLang);
-    
-    // Prioritize server-saved code if this is the language they originally submitted in
-    if (problem.savedLanguage === newLang && problem.savedCode) {
-      setCode(problem.savedCode);
-      return;
-    }
 
-    // Try loading from local storage
+    // Same order as the restore above: this browser's draft, then the submitted code, then the stub.
     let draft: string | null = null;
     try { draft = localStorage.getItem(draftKey(newLang)); } catch { /* unavailable */ }
     if (draft) {
       setCode(draft);
+    } else if (problem.savedLanguage === newLang && problem.savedCode) {
+      setCode(problem.savedCode);
     } else {
       setCode(problem.boilerplateCode ? (problem.boilerplateCode[newLang as keyof typeof problem.boilerplateCode] || "") : "// Start coding here");
     }

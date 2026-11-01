@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { useRef, useTransition } from "react";
+import { useEffect, useRef, useTransition } from "react";
 
 /**
  * Reads/writes list filter state in the URL. Every write drops `page`, so changing
@@ -14,6 +14,13 @@ export function useFilterParams() {
   const searchParams = useSearchParams();
   const [pending, startTransition] = useTransition();
   const inFlight = useRef<{ from: string; to: string } | null>(null);
+
+  // Once our navigation lands, the address bar is the truth again; otherwise a later
+  // browser Back back to `from` would make the next write build on the stale `to`.
+  const current = searchParams.toString();
+  useEffect(() => {
+    if (inFlight.current?.to === current) inFlight.current = null;
+  }, [current]);
 
   const get = (key: string) => searchParams.get(key) ?? "";
 
